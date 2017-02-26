@@ -10,25 +10,27 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 @EnableWebSecurity
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
-
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
                 .authorizeRequests()
-                .antMatchers("/resources/static/**").permitAll()
-                .antMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest()
                 .authenticated()
+                .antMatchers("/authentication/**").anonymous()
+                .antMatchers("/login").anonymous()
                 .and()
                 .formLogin()
-                .loginPage("/login.html")
-                .defaultSuccessUrl("index.html");
+                .loginPage("/authentication/login.html")
+                .permitAll()
+                .and()
+                .csrf().disable()
+                .logout()
+                .permitAll();
     }
 
     @Autowired
-    private void configureGloval(AuthenticationManagerBuilder auth, CustomAuthProvider provider) throws Exception {
+    private void configureGlobal(AuthenticationManagerBuilder auth, CustomAuthProvider provider) throws Exception {
         auth.authenticationProvider(provider);
-
     }
 
 }
