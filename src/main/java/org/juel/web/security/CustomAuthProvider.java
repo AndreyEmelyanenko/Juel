@@ -1,12 +1,20 @@
 package org.juel.web.security;
 
+import org.juel.model.UserCredential;
 import org.juel.repositories.UsersCredentialsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Component
@@ -21,13 +29,20 @@ public class CustomAuthProvider implements AuthenticationProvider {
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        Object cred = authentication.getCredentials();
-        return null;
+        String email = (String) authentication.getPrincipal();
+        String password = (String) authentication.getCredentials();
+        Optional<UserCredential> userCredential = Optional.ofNullable(usersCredentialsRepository.findOne(email));
+        return userCredential
+                .filter(cred -> cred.getPassword().equals(password))
+                .map(cred -> new UsernamePasswordAuthenticationToken(email, password, Collections.singletonList(new SimpleGrantedAuthority(cred.getRole()))))
+                .orElseThrow(() -> new AuthenticationCredentialsNotFoundException("User not found or uncorrected password"));
+
+
     }
 
     @Override
     public boolean supports(Class<?> authentication) {
-        return Stream.of(authentication.getClass().getInterfaces()).anyMatch(interfazze -> interfazze.getName().equals(Authentication.class.getName()));
+        return true;
     }
 
 }

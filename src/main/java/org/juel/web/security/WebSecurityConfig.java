@@ -4,6 +4,7 @@ package org.juel.web.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 
@@ -16,16 +17,22 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests()
                 .anyRequest()
                 .authenticated()
-                .antMatchers("/authentication/**").anonymous()
-                .antMatchers("/login").anonymous()
                 .and()
+                .csrf()
+                .disable()
                 .formLogin()
-                .loginPage("/authentication/login.html")
+                .loginPage("/login.html")
                 .permitAll()
                 .and()
-                .csrf().disable()
                 .logout()
                 .permitAll();
+    }
+
+    @Override
+    public void configure(WebSecurity web) throws Exception {
+        web
+                .ignoring()
+                .antMatchers("/authentication/**");
     }
 
     @Autowired

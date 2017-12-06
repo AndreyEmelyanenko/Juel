@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:tiles="http://www.thymeleaf.org">
 <html>
 <head>
     <meta charset="UTF-8">
     <title>Login</title>
 
 
-    <link rel="stylesheet" href="../css/style.css">
-    <img src="png/network.png" align="left">
+    <link rel="stylesheet" href="/authentication/css/style.css">
+    <img src="/authentication/pictures/network.png" align="left">
 
 
 </head>
@@ -30,7 +30,7 @@
 
 <div class="grid">
 
-    <form action="@{/authentication/login}" method="POST" class="form login">
+    <form method="POST" th:action="/login" class="form login">
 
         <div class="form__field">
             <label for="login__username">
