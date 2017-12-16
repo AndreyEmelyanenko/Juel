@@ -20,6 +20,8 @@ public interface MLFacade {
 
     Map<String, List<Serial>> getInputData();
 
+    MLDataLogicAggregator getLogicAggregator();
+
     String serialize();
 
     Double getScore();

@@ -14,7 +14,11 @@ import org.nd4j.linalg.dataset.api.DataSet;
 import org.nd4j.linalg.factory.Nd4j;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.time.LocalDate;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,14 +33,14 @@ public class MLFacadeMultiLayerNetworkImlTest {
     @Test
     public  void testNeuralNetwork() {
         DenseLayer inputLayer = new DenseLayer.Builder()
-                .nIn(2)
+                .nIn(500)
                 .nOut(3)
                 .name("Input")
                 .weightInit(WeightInit.DISTRIBUTION)
                 .build();
 
         DenseLayer hiddenLayer = new DenseLayer.Builder()
-                .nIn(3)
+                .nIn(500)
                 .nOut(3)
                 .name("Hidden")
                 .activation(Activation.IDENTITY)
@@ -44,7 +48,7 @@ public class MLFacadeMultiLayerNetworkImlTest {
                 .build();
 
         OutputLayer outputLayer = new OutputLayer.Builder()
-                .nIn(3)
+                .nIn(500)
                 .nOut(1)
                 .name("Output")
                 .activation(Activation.SIGMOID)
@@ -104,7 +108,7 @@ public class MLFacadeMultiLayerNetworkImlTest {
     }
 
     @Test
-    public void testMLFacade() {
+    public void testMLFacade() throws IOException, ClassNotFoundException {
 
         MLFacade mlFacade = new MLFacadeMultiLayerNetworkIml();
 
@@ -162,6 +166,11 @@ public class MLFacadeMultiLayerNetworkImlTest {
         serialArray.put("x1", x1);
 
         mlFacade.fit(goals, serialArray);
+
+        byte[] serilized = Base64.getDecoder().decode(mlFacade.serialize());
+
+        ObjectInputStream oin = new ObjectInputStream(new ByteArrayInputStream(serilized));
+        MLFacade ts = (MLFacade) oin.readObject();
 
         mlFacade.predict(serialArray);
     }

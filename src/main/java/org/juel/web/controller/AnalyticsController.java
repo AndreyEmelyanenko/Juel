@@ -39,7 +39,7 @@ public class AnalyticsController {
 
     @GetMapping("/series/{sign}/predict")
     public List<SerialDto> getPredictForSeria(
-            @RequestParam(value = "sign", required = true) String sign,
+            @PathVariable(value = "sign", required = true) String sign,
             @RequestParam(value = "days", required = false) int days) {
         return serialService.getPredictForSerial(sign, days);
     }

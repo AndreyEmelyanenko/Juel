@@ -8,7 +8,7 @@ import javax.persistence.OneToOne;
 import javax.persistence.Id;
 
 @Entity
-@Table(name = "predictive_serial", schema = "juel")
+@Table(name = "goal_serial", schema = "juel")
 public class GoalMeta {
 
     @Id

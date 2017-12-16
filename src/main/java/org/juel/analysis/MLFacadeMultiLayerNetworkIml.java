@@ -2,25 +2,26 @@ package org.juel.analysis;
 
 import javafx.util.Pair;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
+import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
-import org.deeplearning4j.nn.conf.layers.LSTM;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.nn.weights.WeightInit;
+import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.juel.data.model.Serial;
 import org.juel.model.SerialMeta;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.api.DataSet;
 import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.learning.config.Nesterovs;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.plugin.dom.exception.InvalidStateException;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -42,11 +43,11 @@ import static java.time.temporal.ChronoUnit.DAYS;
 // Интерфейс Serializable реализуется для того, чтобы данный объект можно было потом сериализовать и сохранить в базу данных
 public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(MLFacadeMultiLayerNetworkIml.class);
-    private static final int SHIFT_DAYS = 14;
+    private Logger LOGGER = LoggerFactory.getLogger(MLFacadeMultiLayerNetworkIml.class);
+    private int SHIFT_DAYS = 14;
 
     private MultiLayerNetwork neuralNetwork;
-    private final MLDataLogikAggregator mlDataLogikAggregator;
+    private MLDataLogicAggregator mlDataLogicAggregatorImpl;
 
     private boolean isFitted = false;
     private Map<String, List<Serial>> inputData;
@@ -57,7 +58,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
     private List<String> labels = new ArrayList<>();
 
     public MLFacadeMultiLayerNetworkIml() {
-        this.mlDataLogikAggregator = new MLDataLogikAggregator();
+        this.mlDataLogicAggregatorImpl = new MLDataLogicAggregatorImpl();
     }
 
     @Override
@@ -70,7 +71,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
         /// Клонируем объекты для того, чтобы внешние потоки не могли поменять структуры
         this.inputData = (Map<String, List<Serial>>) ((HashMap<String, List<Serial>>) data).clone();
         this.inputGoal = (List<Serial>) ((ArrayList<Serial>) goal).clone();
-        Pair<List<Serial>, Map<String, List<Serial>>> normalizedDataset = mlDataLogikAggregator.mapAndStretch(goal, data);
+        Pair<List<Serial>, Map<String, List<Serial>>> normalizedDataset = mlDataLogicAggregatorImpl.mapAndStretch(goal, data);
         this.normalizedGoals = normalizedDataset.getKey();
         this.normalizedData = normalizedDataset.getValue();
         this.neuralNetwork = createNetwork(normalizedGoals, normalizedData);
@@ -109,6 +110,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
             }
         }
 
+
         INDArray actualOutput = neuralNetwork.output(forecstInputs);
 
         List<Double> predict = Arrays.stream(actualOutput
@@ -123,7 +125,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
             resultSeria.add(new Serial(
                     serialMeta.getSign(),
                     predict.get(i),
-                    dataMatrix.get(0).get(i).getForDate().plusDays(SHIFT_DAYS))
+                    LocalDate.now().plusDays(i + 1))
             );
         }
 
@@ -150,17 +152,29 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
     }
 
     @Override
+    public MLDataLogicAggregator getLogicAggregator() {
+        return mlDataLogicAggregatorImpl;
+    }
+
+    @Override
     public String serialize() {
+       return serialize(this);
+    }
+
+    private String serialize(MLFacade mlFacade) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             ObjectOutputStream oos = new ObjectOutputStream(baos);
-            oos.writeObject(this);
+            oos.writeObject(mlFacade);
+            oos.flush();
             oos.close();
-        } catch (IOException e) {
-            LOGGER.error("Error while serialize object {} :", this, e);
+            return Base64.getEncoder().encodeToString(baos.toByteArray());
+        } catch (Exception e) {
+            LOGGER.error("Error while serialize object {}", mlFacade, e);
         }
-        return Base64.getEncoder().encodeToString(baos.toByteArray());
+        return null;
     }
+
 
     @Override
     public Double getScore() {
@@ -174,65 +188,45 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
 
     private MultiLayerNetwork createNetwork(List<Serial> goal, Map<String, List<Serial>> data) {
 
-        DenseLayer inputLayer = new DenseLayer.Builder()
-                .nIn(data.size())
-                .nOut(data.size())
-                .name("Input")
-                .weightInit(WeightInit.DISTRIBUTION)
-                .build();
+        /// вынести в конфиг
+        final int numHiddenNodes = 50;
 
-        LSTM hiddenLayer = new LSTM.Builder()
-                .nIn(data.size())
-                .nOut(data.size())
-                .name("Hidden1")
-                .activation(Activation.SIGMOID)
+        final int seed = 12345;
+
+        final int iterations = 1;
+
+        final double learningRate = 0.01;
+
+        final int numOutputs = 1;
+        ///
+
+        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
+                .seed(seed)
+                .iterations(iterations)
+                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+                .learningRate(learningRate)
                 .weightInit(WeightInit.XAVIER)
-                .build();
+                .updater(new Nesterovs(0.9))
+                .list()
+                .layer(0, new DenseLayer.Builder().nIn(data.size()).nOut(numHiddenNodes)
+                        .activation(Activation.TANH).build())
+                .layer(1, new DenseLayer.Builder().nIn(numHiddenNodes).nOut(numHiddenNodes)
+                        .activation(Activation.TANH).build())
+                .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
+                        .activation(Activation.IDENTITY)
+                        .nIn(numHiddenNodes).nOut(numOutputs).build())
+                .pretrain(false).backprop(true).build();
 
-        LSTM hidden2Layer = new LSTM.Builder()
-                .nIn(data.size())
-                .nOut(data.size())
-                .name("Hidden2")
-                .activation(Activation.SIGMOID)
-                .weightInit(WeightInit.XAVIER)
-                .build();
-
-        LSTM hidden3Layer = new LSTM.Builder()
-                .nIn(data.size())
-                .nOut(data.size())
-                .name("Hidden3")
-                .activation(Activation.SIGMOID)
-                .weightInit(WeightInit.XAVIER)
-                .build();
-
-        OutputLayer outputLayer = new OutputLayer.Builder()
-                .nIn(data.size())
-                .nOut(1)
-                .name("Output")
-                .activation(Activation.IDENTITY)
-                .weightInit(WeightInit.XAVIER)
-                .lossFunction(LossFunctions.LossFunction.MEAN_ABSOLUTE_ERROR)
-                .build();
-
-        NeuralNetConfiguration.Builder nncBuilder = new NeuralNetConfiguration.Builder();
-        nncBuilder.iterations(10000);
-        nncBuilder.learningRate(0.06);
-        nncBuilder.optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT);
-
-        NeuralNetConfiguration.ListBuilder listBuilder = nncBuilder.list();
-        listBuilder.layer(0, inputLayer);
-        listBuilder.layer(1, hiddenLayer);
-        listBuilder.layer(2, hidden2Layer);
-        listBuilder.layer(3, hidden3Layer);
-        listBuilder.layer(4, outputLayer);
-
-        listBuilder.backprop(true);
-
-        MultiLayerNetwork myNetwork = new MultiLayerNetwork(listBuilder.build());
+        final MultiLayerNetwork myNetwork = new MultiLayerNetwork(conf);
         myNetwork.init();
+        myNetwork.setListeners(new ScoreIterationListener(1));
 
-        INDArray trainingInputs = Nd4j.zeros(goal.size() + 1, inputLayer.getNIn());
-        INDArray trainingOutputs = Nd4j.zeros(goal.size() + 1, outputLayer.getNOut());
+
+      /*  MultiLayerNetwork myNetwork = new MultiLayerNetwork(listBuilder.build());
+        myNetwork.init();
+*/
+        INDArray trainingInputs = Nd4j.zeros(goal.size() + 1, data.size());
+        INDArray trainingOutputs = Nd4j.zeros(goal.size() + 1, 1);
 
         List<List<Serial>> dataMatrix = data
                 .values()
@@ -273,9 +267,10 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
         return true;
     }
 
-    public static class MLDataLogikAggregator {
+    public class MLDataLogicAggregatorImpl implements MLDataLogicAggregator, Serializable {
 
-        private Pair<List<Serial>, Map<String, List<Serial>>> mapAndStretch(List<Serial> goal, Map<String, List<Serial>> data) {
+        @Override
+        public Pair<List<Serial>, Map<String, List<Serial>>> mapAndStretch(List<Serial> goal, Map<String, List<Serial>> data) {
 
             LocalDate maxDate = goal
                     .stream()
@@ -289,7 +284,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
                     .min(LocalDate::compareTo)
                     .get();
 
-            List<LocalDate> trainingPeriud = getLocalDate(minDate, maxDate);
+            List<LocalDate> trainingPeriud = getLocalDateList(minDate, maxDate);
 
             List<Serial> stretchedGoals = stretchSeria(trainingPeriud, goal);
 
@@ -319,7 +314,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
 
         }
 
-
+        @Override
         public List<Serial> stretchSeria(List<LocalDate> dates, List<Serial> serial) {
 
             Map<LocalDate, Serial> serialDateMap = serial
@@ -339,7 +334,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
                     }).collect(Collectors.toList());
         }
 
-        private List<LocalDate> getLocalDate(LocalDate minDate, LocalDate maxDate) {
+        public List<LocalDate> getLocalDateList(LocalDate minDate, LocalDate maxDate) {
 
             final long days = minDate.until(maxDate, DAYS);
 
@@ -348,7 +343,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
                     .collect(Collectors.toList());
         }
 
-        private Serial getSerialBetweenPoints(Map<LocalDate, Serial> serialDateMap,
+        public Serial getSerialBetweenPoints(Map<LocalDate, Serial> serialDateMap,
                                               LocalDate forDate) {
             LocalDate maxDate = serialDateMap
                     .keySet()
@@ -387,7 +382,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
         }
 
 
-        private Serial getSerialInInterval(Map<LocalDate, Serial> serialDateMap,
+        public Serial getSerialInInterval(Map<LocalDate, Serial> serialDateMap,
                                            LocalDate forDate) {
             Serial maxSerial = null;
             Serial minSerial = null;
@@ -417,9 +412,9 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
             return null;
         }
 
-        private double getAverage(Serial maxSerial, Serial minSerial, LocalDate forDate) {
-            long dayToMax = DAYS.between(forDate, maxSerial.getForDate());
-            long dayToMin = DAYS.between(forDate, minSerial.getForDate());
+        public double getAverage(Serial maxSerial, Serial minSerial, LocalDate forDate) {
+            long dayToMax = Math.abs(DAYS.between(forDate, maxSerial.getForDate()));
+            long dayToMin = Math.abs(DAYS.between(forDate, minSerial.getForDate()));
             long sumOfDay = dayToMax + dayToMin;
             return (dayToMax / sumOfDay) * maxSerial.getValue() + (dayToMin / sumOfDay) * minSerial.getValue();
         }

@@ -16,7 +16,7 @@ public class PredictiveModel {
     @JoinColumn(name = "sign")
     private SerialMeta sign;
 
-    @Column(name = "model")
+    @Column(name = "model", columnDefinition = "TEXT")
     private String serializedModel;
 
     @Column(name = "score")

@@ -11,4 +11,6 @@ public interface PredictiveModelRepository extends CrudRepository<PredictiveMode
 
     List<PredictiveModel> findAll();
 
+
+
 }

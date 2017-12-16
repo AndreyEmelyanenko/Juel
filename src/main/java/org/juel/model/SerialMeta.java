@@ -5,10 +5,11 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import java.io.Serializable;
 
 @Entity
 @Table(name = "supported_serial", schema = "juel")
-public class SerialMeta {
+public class SerialMeta implements Serializable {
 
     @Id
     @Column(name = "sign")
