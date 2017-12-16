@@ -108,12 +108,47 @@ public class TimeSeriesElasticSearchRepositoryImpl implements TimeSeriesReposito
     }
 
     @Override
+    public List<Serial> findNLast(String key, int count) {
+
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.sort(SortBuilders.fieldSort("forDate").order(SortOrder.DESC));
+        searchSourceBuilder.size(count);
+        SearchRequest searchRequest = new SearchRequest()
+                .indices(ELASTIC_INDEX)
+                .types(key)
+                .source(searchSourceBuilder);
+        try {
+            return Stream.of(
+                    transportClientProvider
+                            .get()
+                            .search(searchRequest)
+                            .getHits()
+                            .getHits())
+                    .flatMap(hit -> {
+                        try {
+                            return Stream.of(mapper.readValue(hit.getSourceAsString(), Serial.class));
+                        } catch (IOException e) {
+                            LOGGER.error("Error while mapping hits to Serial", e);
+                            return Stream.empty();
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            LOGGER.error("Error while searching serial {}", e);
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
     public List<Serial> findAll(String key) {
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.sort(SortBuilders.fieldSort("forDate").order(SortOrder.DESC));
+        searchSourceBuilder.size(365);
         SearchRequest searchRequest = new SearchRequest(ELASTIC_INDEX);
         searchRequest.types(key);
         searchRequest.source(searchSourceBuilder);
+
         try {
             return Stream.of(
                     transportClientProvider

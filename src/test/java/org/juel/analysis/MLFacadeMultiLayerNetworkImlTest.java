@@ -161,7 +161,6 @@ public class MLFacadeMultiLayerNetworkImlTest {
 
         serialArray.put("x1", x1);
 
-
         mlFacade.fit(goals, serialArray);
 
         mlFacade.predict(serialArray);

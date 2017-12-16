@@ -135,6 +135,16 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
         return this.getGoals();
     }
 
+    @Override
+    public List<String> getLabels() {
+        return this.labels;
+    }
+
+    @Override
+    public String getSign() {
+        return serialMeta.getSign();
+    }
+
     public Map<String, List<Serial>> getInputData() {
         return inputData;
     }
@@ -263,7 +273,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
         return true;
     }
 
-    private class MLDataLogikAggregator {
+    public static class MLDataLogikAggregator {
 
         private Pair<List<Serial>, Map<String, List<Serial>>> mapAndStretch(List<Serial> goal, Map<String, List<Serial>> data) {
 
@@ -287,7 +297,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
                     .stream()
                     .filter(serial -> serial
                             .getForDate()
-                            .isBefore(LocalDate.now()
+                            .isBefore(maxDate
                                     .minusDays(SHIFT_DAYS)))
                     .collect(Collectors.toList());
 
@@ -298,12 +308,19 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
                     .filter(serial -> serial.getForDate().isAfter(minDate.plusDays(SHIFT_DAYS)))
                     .collect(Collectors.groupingBy(Serial::getSign));
 
-            return new Pair<>(stretchedShiftedGoals, stretchedData);
+            stretchedData.put(goal.get(0).getSign(), stretchedShiftedGoals);
+
+            List<Serial> stretchedShiftedUpGoals = stretchedGoals
+                    .stream()
+                    .filter(serial -> serial.getForDate().isAfter(minDate.plusDays(SHIFT_DAYS)))
+                    .collect(Collectors.toList());
+
+            return new Pair<>(stretchedShiftedUpGoals, stretchedData);
 
         }
 
 
-        private List<Serial> stretchSeria(List<LocalDate> dates, List<Serial> serial) {
+        public List<Serial> stretchSeria(List<LocalDate> dates, List<Serial> serial) {
 
             Map<LocalDate, Serial> serialDateMap = serial
                     .stream()
@@ -347,7 +364,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
 
             if (forDate.isBefore(maxDate) && forDate.isAfter(minDate)) {
                 return getSerialInInterval(serialDateMap, forDate);
-            } else if (forDate.equals(maxDate)) {
+            } else if (forDate.isAfter(maxDate)) {
 
                 Serial serial = serialDateMap.get(maxDate);
 
@@ -356,7 +373,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
                         serial.getValue(),
                         forDate
                 );
-            } else if (forDate.equals(minDate)) {
+            } else if (forDate.isBefore(minDate)) {
 
                 Serial serial = serialDateMap.get(minDate);
 
@@ -376,14 +393,18 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
             Serial minSerial = null;
 
             for (int i = 1; i <= serialDateMap.size() / 2; i++) {
+
                 Serial maxSerialTmp = serialDateMap.get(forDate.plusDays(i));
                 Serial minSerialTmp = serialDateMap.get(forDate.minusDays(i));
+
                 if (maxSerial == null && maxSerialTmp != null) {
                     maxSerial = maxSerialTmp;
                 }
+
                 if (minSerial == null && minSerialTmp != null) {
                     minSerial = minSerialTmp;
                 }
+
                 if (maxSerial != null && minSerial != null) {
                     return new Serial(
                             minSerial.getSign(),
@@ -391,6 +412,7 @@ public class MLFacadeMultiLayerNetworkIml implements MLFacade, Serializable {
                             forDate
                     );
                 }
+
             }
             return null;
         }

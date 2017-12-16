@@ -12,6 +12,8 @@ public interface TimeSeriesRepository<T> {
 
     Optional<T> findLast(String key);
 
+    List<T> findNLast(String key, int count);
+
     List<T> findAll(String key);
 
 }

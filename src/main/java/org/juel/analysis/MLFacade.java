@@ -14,6 +14,10 @@ public interface MLFacade {
 
     List<Serial> getGoals();
 
+    List<String> getLabels();
+
+    String getSign();
+
     Map<String, List<Serial>> getInputData();
 
     String serialize();
