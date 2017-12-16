@@ -2,9 +2,10 @@ package org.juel.data.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
-public class Serial {
+public class Serial implements Serializable {
 
     private String sign;
     private Double value;

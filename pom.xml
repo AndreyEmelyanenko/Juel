@@ -23,6 +23,7 @@
         <spring-data-jpa.version>1.11.0.RELEASE</spring-data-jpa.version>
         <postgresql.version>9.4.1212.jre7</postgresql.version>
         <elastic.version>6.0.0</elastic.version>
+        <nd4j.version>0.9.1</nd4j.version>
     </properties>
 
     <dependencies>
@@ -65,6 +66,18 @@
         <dependency>
             <groupId>org.deeplearning4j</groupId>
             <artifactId>deeplearning4j-core</artifactId>
+            <version>0.9.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.nd4j</groupId>
+            <artifactId>nd4j-native-platform</artifactId>
+            <version>${nd4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.deeplearning4j</groupId>
+            <artifactId>deeplearning4j-nn</artifactId>
             <version>0.9.1</version>
         </dependency>
 

@@ -12,4 +12,14 @@ public interface MLFacade {
 
     List<Serial> predict(Map<String, List<Serial>> data);
 
+    List<Serial> getGoals();
+
+    Map<String, List<Serial>> getInputData();
+
+    String serialize();
+
+    Double getScore();
+
+    boolean isFitted();
+
 }

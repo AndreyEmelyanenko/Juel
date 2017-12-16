@@ -1,6 +1,7 @@
 package org.juel.repositories;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface TimeSeriesRepository<T> {
@@ -10,5 +11,7 @@ public interface TimeSeriesRepository<T> {
     Optional<T> findSerial(String key, LocalDate dueDate);
 
     Optional<T> findLast(String key);
+
+    List<T> findAll(String key);
 
 }

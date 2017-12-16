@@ -18,8 +18,11 @@ import org.springframework.stereotype.Repository;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
@@ -77,12 +80,10 @@ public class TimeSeriesElasticSearchRepositoryImpl implements TimeSeriesReposito
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.sort(SortBuilders.fieldSort("forDate").order(SortOrder.DESC));
         searchSourceBuilder.size(1);
-
         SearchRequest searchRequest = new SearchRequest()
                 .indices(ELASTIC_INDEX)
                 .types(key)
                 .source(searchSourceBuilder);
-
         try {
             return Stream.of(
                     transportClientProvider
@@ -100,9 +101,39 @@ public class TimeSeriesElasticSearchRepositoryImpl implements TimeSeriesReposito
                     })
                     .filter(Objects::nonNull)
                     .findAny();
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOGGER.error("Error while searching serial {}", e);
             return Optional.empty();
+        }
+    }
+
+    @Override
+    public List<Serial> findAll(String key) {
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.sort(SortBuilders.fieldSort("forDate").order(SortOrder.DESC));
+        SearchRequest searchRequest = new SearchRequest(ELASTIC_INDEX);
+        searchRequest.types(key);
+        searchRequest.source(searchSourceBuilder);
+        try {
+            return Stream.of(
+                    transportClientProvider
+                            .get()
+                            .search(searchRequest)
+                            .getHits()
+                            .getHits())
+                    .flatMap(hit -> {
+                try {
+                    return Stream.of(mapper.readValue(hit.getSourceAsString(), Serial.class));
+                } catch (IOException e) {
+                    LOGGER.error("Error while mapping hits to Serial", e);
+                    return Stream.empty();
+                }
+            })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            LOGGER.error("Error while find all {}", e);
+            return Collections.emptyList();
         }
     }
 }
